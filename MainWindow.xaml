@@ -1,0 +1,25 @@
+﻿<Window x:Class="RasterGraphics.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:rasterGraphics="clr-namespace:RasterGraphics"
+        Title="Raster Graphics" Height="705" Width="1004">
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="File">
+                <MenuItem Header="Load Image" Click="LoadImage_Click"/>
+                <MenuItem Header="Save as PNG" Click="SaveImage_Click"/>
+                <Separator/>
+                <!-- <MenuItem Header="Exit" Click="Exit_Click"/> -->
+            </MenuItem>
+            <MenuItem Header="Image">
+                <MenuItem Header="Grayscale" Click="Grayscale_Click"/>
+                <MenuItem Header="Adjust Saturation" Click="Saturation_Click"/>
+                <MenuItem Header="Adjust Hue" Click="Hue_Click"/>
+                <MenuItem Header="Convulution" Click="Convulution_Click" />
+                <Separator/>
+                <MenuItem Header="Revert to Original" Click="Revert_Click"/>
+            </MenuItem>
+        </Menu>
+        <rasterGraphics:ImagePanel x:Name="ImagePanel" Margin="10,10,24,45" />
+    </DockPanel>
+</Window>
