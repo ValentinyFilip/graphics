@@ -133,7 +133,7 @@ public partial class MainWindow
         ImagePanel.SetImage(_vram.GetBitmap());
     }
 
-    private void Convulution_Click(object sender, RoutedEventArgs e)
+    private void Convolution_Click(object sender, RoutedEventArgs e)
     {
         if (_vram == null)
         {
@@ -147,7 +147,25 @@ public partial class MainWindow
         var boxBlur = Kernel.BoxBlur3X3;
         Cv03Convolution.Convolution(_vram, in boxBlur);
         stopwatch.Stop();
-        Console.WriteLine($"Convulution took {stopwatch.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Convolution took {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void EdgeDetect_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        var edgeDetect = Kernel.EdgeDetect;
+        Cv03Convolution.ConvolutionLaplacianGray(_vram, in edgeDetect);
+        stopwatch.Stop();
+        Console.WriteLine($"EdgeDetection took {stopwatch.ElapsedMilliseconds} ms");
         ImagePanel.SetImage(_vram.GetBitmap());
     }
 }

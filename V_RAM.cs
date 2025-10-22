@@ -1,4 +1,5 @@
-﻿using System.Windows.Media;
+﻿using System.Runtime.CompilerServices;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using RasterGraphics.Common;
 
@@ -6,29 +7,30 @@ namespace RasterGraphics;
 
 public class VRam(int width = 255, int height = 255)
 {
-    internal readonly int[,] _rawData = new int[height, width];
+    internal readonly int[] _rawData = new int[height * width];
     public int Width { get; } = width;
     public int Height { get; } = height;
 
-    public int GetPixel(int x, int y) => _rawData[y, x];
+    // Convert 2D coordinates (x, y) to 1D index
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetIndex(int x, int y) => y * Width + x;
+
+    public int GetPixel(int x, int y) => _rawData[y * Width + x];
 
     public void SetPixel(int x, int y, int r, int g, int b) =>
-        _rawData[y, x] = (255 << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+        _rawData[y * Width + x] = (255 << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 
     public void SetPixel(int x, int y, int r, int g, int b, int a) =>
-        _rawData[y, x] = ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+        _rawData[y * Width + x] = ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 
-    // RGB struct overload
     public void SetPixel(int x, int y, RgbColor rgb) =>
-        _rawData[y, x] = (rgb.A << 24) | (rgb.R << 16) | (rgb.G << 8) | rgb.B;
+        _rawData[y * Width + x] = (rgb.A << 24) | (rgb.R << 16) | (rgb.G << 8) | rgb.B;
 
-    // HSL struct overload - converts HSL to RGB first
     public void SetPixel(int x, int y, HslColor hsl)
     {
-        var (r, g, b) = HslToRgb(hsl);
-        _rawData[y, x] = ((byte)(hsl.A * 255) << 24) | (r << 16) | (g << 8) | b;
+        (byte r, byte g, byte b) = HslToRgb(hsl);
+        _rawData[y * Width + x] = ((byte)(hsl.A * 255) << 24) | (r << 16) | (g << 8) | b;
     }
-
     private static (byte r, byte g, byte b) HslToRgb(HslColor hsl)
     {
         byte r, g, b;
@@ -72,21 +74,19 @@ public class VRam(int width = 255, int height = 255)
         return v1;
     }
 
+
     public WriteableBitmap GetBitmap()
     {
         WriteableBitmap bmp = new(Width, Height, 96, 96, PixelFormats.Bgra32, null);
         byte[] pixels = new byte[Width * Height * 4];
-        int i = 0;
-        for (int y = 0; y < Height; ++y)
+
+        int pixelIndex = 0;
+        foreach (int argb in _rawData)
         {
-            for (int x = 0; x < Width; ++x)
-            {
-                int argb = _rawData[y, x];
-                pixels[i++] = (byte)argb; // Blue
-                pixels[i++] = (byte)(argb >> 8); // Green
-                pixels[i++] = (byte)(argb >> 16); // Red
-                pixels[i++] = (byte)(argb >> 24); // Alpha
-            }
+            pixels[pixelIndex++] = (byte)argb;           // Blue
+            pixels[pixelIndex++] = (byte)(argb >> 8);    // Green
+            pixels[pixelIndex++] = (byte)(argb >> 16);   // Red
+            pixels[pixelIndex++] = (byte)(argb >> 24);   // Alpha
         }
 
         bmp.WritePixels(new System.Windows.Int32Rect(0, 0, Width, Height), pixels, Width * 4, 0);
@@ -95,38 +95,26 @@ public class VRam(int width = 255, int height = 255)
 
     public void LoadFromBitmap(BitmapSource bitmap)
     {
-        // Ensure the bitmap matches our VRAM dimensions
-        if (bitmap.PixelWidth != width || bitmap.PixelHeight != height)
+        if (bitmap.PixelWidth != Width || bitmap.PixelHeight != Height)
         {
-            // Optionally resize the bitmap or throw an exception
-            // For now, we'll scale it to fit VRAM size
             bitmap = new TransformedBitmap(bitmap, new ScaleTransform(
-                (double)width / bitmap.PixelWidth,
-                (double)height / bitmap.PixelHeight));
+                (double)Width / bitmap.PixelWidth,
+                (double)Height / bitmap.PixelHeight));
         }
 
-        // Convert to Bgra32 format for easy processing
         FormatConvertedBitmap convertedBitmap = new(bitmap, PixelFormats.Bgra32, null, 0);
-
-        int stride = width * 4;
-        byte[] pixels = new byte[height * stride];
-
-        // Copy pixel data from bitmap
+        int stride = Width * 4;
+        byte[] pixels = new byte[Height * stride];
         convertedBitmap.CopyPixels(pixels, stride, 0);
 
-        // Convert from BGRA byte array to ARGB int array in rawData
-        int i = 0;
-        for (int y = 0; y < height; y++)
+        int pixelIndex = 0;
+        for (int i = 0; i < _rawData.Length; i++)
         {
-            for (int x = 0; x < width; x++)
-            {
-                byte b = pixels[i++];
-                byte g = pixels[i++];
-                byte r = pixels[i++];
-                byte a = pixels[i++];
-
-                _rawData[y, x] = (a << 24) | (r << 16) | (g << 8) | b;
-            }
+            byte b = pixels[pixelIndex++];
+            byte g = pixels[pixelIndex++];
+            byte r = pixels[pixelIndex++];
+            byte a = pixels[pixelIndex++];
+            _rawData[i] = (a << 24) | (r << 16) | (g << 8) | b;
         }
     }
 
@@ -137,12 +125,6 @@ public class VRam(int width = 255, int height = 255)
             throw new ArgumentException("Source VRAM dimensions must match.");
         }
 
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                _rawData[y, x] = source._rawData[y, x];
-            }
-        }
+        Array.Copy(source._rawData, _rawData, _rawData.Length);
     }
 }

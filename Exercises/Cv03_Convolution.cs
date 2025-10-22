@@ -15,31 +15,34 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
     // TODO: so that edge detection works
     public static void Convolution(VRam vram, in Kernel kernel)
     {
-        int[,] sourceData = vram._rawData;
-        int[,] outputData = new int[vram.Height, vram.Width];
+        int[] sourceData = vram._rawData;
+        int[] outputData = new int[sourceData.Length];
 
+        int width = vram.Width, height = vram.Height;
         int[,] kernelData = kernel.Data;
-        int kernelHeight = kernel.Height;
-        int kernelWidth = kernel.Width;
+        int kernelHeight = kernel.Height, kernelWidth = kernel.Width;
 
-        for (int y = 0; y < vram.Height; y++)
+        for (int y = 0; y < height; y++)
         {
-            for (int x = 0; x < vram.Width; x++)
+            for (int x = 0; x < width; x++)
             {
                 int sumR = 0, sumG = 0, sumB = 0, kernelSum = 0;
 
-                for (int yk = 0; yk < kernelHeight; yk++)
+                for (int ky = 0; ky < kernelHeight; ky++)
                 {
-                    int py = y + yk - kernelHeight / 2;
-                    for (int xk = 0; xk < kernelWidth; xk++)
+                    int py = y + ky - 1;
+                    if (py < 0 || py >= height) continue;
+
+                    int rowOffset = py * width; // Pre-calculate row offset
+
+                    for (int kx = 0; kx < kernelWidth; kx++)
                     {
-                        int px = x + xk - kernelWidth / 2;
+                        int px = x + kx - 1;
+                        if (px < 0 || px >= width) continue;
 
-                        if (px < 0 || py < 0 || px >= vram.Width || py >= vram.Height)
-                            continue;
-
-                        int argb = sourceData[py, px];
-                        int kernelValue = kernelData[yk, xk];
+                        // Direct 1D array access - single index calculation
+                        int argb = sourceData[rowOffset + px];
+                        int kernelValue = kernelData[ky, kx];
 
                         sumR += kernelValue * ((argb >> 16) & 0xFF);
                         sumG += kernelValue * ((argb >> 8) & 0xFF);
@@ -48,14 +51,51 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
                     }
                 }
 
-                int r = Math.Clamp(sumR / kernelSum, 0, 255);
-                int g = Math.Clamp(sumG / kernelSum, 0, 255);
-                int b = Math.Clamp(sumB / kernelSum, 0, 255);
+                int r = sumR / kernelSum;
+                int g = sumG / kernelSum;
+                int b = sumB / kernelSum;
 
-                outputData[y, x] = (255 << 24) | (r << 16) | (g << 8) | b;
+                outputData[y * width + x] = (255 << 24) | (r << 16) | (g << 8) | b;
             }
         }
 
         Array.Copy(outputData, sourceData, outputData.Length);
+    }
+
+    public static void ConvolutionLaplacianGray(VRam vram, in Kernel kernel)
+    {
+        int[] src = vram._rawData;
+        int[] dst = new int[src.Length];
+        int w = vram.Width, h = vram.Height;
+        int[,] k = kernel.Data;
+        int kh = kernel.Height, kw = kernel.Width;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int acc = 0;
+                for (int ky = 0; ky < kh; ky++)
+                {
+                    int py = Math.Clamp(y + ky - kh / 2, 0, h - 1);
+                    int row = py * w;
+                    for (int kx = 0; kx < kw; kx++)
+                    {
+                        int px = Math.Clamp(x + kx - kw / 2, 0, w - 1);
+                        int argb = src[row + px];
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+                        int gray = (77 * r + 150 * g + 29 * b) >> 8; // ~0.299,0.587,0.114
+                        acc += k[ky, kx] * gray;
+                    }
+                }
+                int v = (int)(Math.Abs(acc) * 6.0f);
+                v = Math.Clamp(v, 0, 255);
+                dst[y * w + x] = (255 << 24) | (v << 16) | (v << 8) | v;
+            }
+        }
+
+        Array.Copy(dst, src, src.Length);
     }
 }
