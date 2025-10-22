@@ -15,7 +15,7 @@
                 <MenuItem Header="Grayscale" Click="Grayscale_Click"/>
                 <MenuItem Header="Adjust Saturation" Click="Saturation_Click"/>
                 <MenuItem Header="Adjust Hue" Click="Hue_Click"/>
-                <MenuItem Header="Convolution" Click="Convolution_Click" />
+                <MenuItem Header="Blur 3x3" Click="BoxBlur_Click" />
                 <MenuItem Header="Edge detect" Click="EdgeDetect_Click" />
                 <Separator/>
                 <MenuItem Header="Revert to Original" Click="Revert_Click"/>

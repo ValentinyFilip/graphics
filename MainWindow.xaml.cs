@@ -133,7 +133,7 @@ public partial class MainWindow
         ImagePanel.SetImage(_vram.GetBitmap());
     }
 
-    private void Convolution_Click(object sender, RoutedEventArgs e)
+    private void BoxBlur_Click(object sender, RoutedEventArgs e)
     {
         if (_vram == null)
         {
@@ -147,7 +147,7 @@ public partial class MainWindow
         var boxBlur = Kernel.BoxBlur3X3;
         Cv03Convolution.Convolution(_vram, in boxBlur);
         stopwatch.Stop();
-        Console.WriteLine($"Convolution took {stopwatch.ElapsedMilliseconds} ms");
+        Console.WriteLine($"BoxBlur 3x3 took {stopwatch.ElapsedMilliseconds} ms");
         ImagePanel.SetImage(_vram.GetBitmap());
     }
 

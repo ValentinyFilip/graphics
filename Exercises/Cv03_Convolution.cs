@@ -12,7 +12,6 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
         return vram.GetBitmap();
     }
 
-    // TODO: so that edge detection works
     public static void Convolution(VRam vram, in Kernel kernel)
     {
         int[] sourceData = vram._rawData;
@@ -20,34 +19,35 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
 
         int width = vram.Width, height = vram.Height;
         int[,] kernelData = kernel.Data;
-        int kernelHeight = kernel.Height, kernelWidth = kernel.Width;
+        int kernelSize = kernel.Height;
+        int halfSize = kernelSize / 2;
 
-        for (int y = 0; y < height; y++)
+        // Precompute kernel sum once
+        int kernelSum = 0;
+        for (int ky = 0; ky < kernelSize; ky++)
+        for (int kx = 0; kx < kernelSize; kx++)
+            kernelSum += kernelData[ky, kx];
+
+        Parallel.For(0, height, y =>
         {
             for (int x = 0; x < width; x++)
             {
-                int sumR = 0, sumG = 0, sumB = 0, kernelSum = 0;
+                int sumR = 0, sumG = 0, sumB = 0;
 
-                for (int ky = 0; ky < kernelHeight; ky++)
+                for (int ky = 0; ky < kernelSize; ky++)
                 {
-                    int py = y + ky - 1;
-                    if (py < 0 || py >= height) continue;
+                    int py = Math.Clamp(y + ky - halfSize, 0, height - 1);
+                    int rowOffset = py * width;
 
-                    int rowOffset = py * width; // Pre-calculate row offset
-
-                    for (int kx = 0; kx < kernelWidth; kx++)
+                    for (int kx = 0; kx < kernelSize; kx++)
                     {
-                        int px = x + kx - 1;
-                        if (px < 0 || px >= width) continue;
-
-                        // Direct 1D array access - single index calculation
+                        int px = Math.Clamp(x + kx - halfSize, 0, width - 1);
                         int argb = sourceData[rowOffset + px];
                         int kernelValue = kernelData[ky, kx];
 
                         sumR += kernelValue * ((argb >> 16) & 0xFF);
                         sumG += kernelValue * ((argb >> 8) & 0xFF);
                         sumB += kernelValue * (argb & 0xFF);
-                        kernelSum += kernelValue;
                     }
                 }
 
@@ -57,7 +57,7 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
 
                 outputData[y * width + x] = (255 << 24) | (r << 16) | (g << 8) | b;
             }
-        }
+        });
 
         Array.Copy(outputData, sourceData, outputData.Length);
     }
@@ -66,35 +66,54 @@ public class Cv03Convolution(int width, int height) : IExerciseInterface
     {
         int[] src = vram._rawData;
         int[] dst = new int[src.Length];
+        int[] accBuffer = new int[src.Length];
         int w = vram.Width, h = vram.Height;
         int[,] k = kernel.Data;
-        int kh = kernel.Height, kw = kernel.Width;
+        int kernelSize = kernel.Height;
+        int halfSize = kernelSize / 2;
+        object lockObj = new();
 
-        for (int y = 0; y < h; y++)
+        int maxAbs = 1;
+
+        Parallel.For(0, h, y =>
         {
+            int localMax = 0;
             for (int x = 0; x < w; x++)
             {
                 int acc = 0;
-                for (int ky = 0; ky < kh; ky++)
+                for (int ky = 0; ky < kernelSize; ky++)
                 {
-                    int py = Math.Clamp(y + ky - kh / 2, 0, h - 1);
+                    int py = Math.Clamp(y + ky - halfSize, 0, h - 1);
                     int row = py * w;
-                    for (int kx = 0; kx < kw; kx++)
+
+                    for (int kx = 0; kx < kernelSize; kx++)
                     {
-                        int px = Math.Clamp(x + kx - kw / 2, 0, w - 1);
+                        int px = Math.Clamp(x + kx - halfSize, 0, w - 1);
                         int argb = src[row + px];
-                        int r = (argb >> 16) & 0xFF;
-                        int g = (argb >> 8) & 0xFF;
-                        int b = argb & 0xFF;
-                        int gray = (77 * r + 150 * g + 29 * b) >> 8; // ~0.299,0.587,0.114
+                        int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
+                        int gray = (77 * r + 150 * g + 29 * b) >> 8;
                         acc += k[ky, kx] * gray;
                     }
                 }
-                int v = (int)(Math.Abs(acc) * 6.0f);
-                v = Math.Clamp(v, 0, 255);
-                dst[y * w + x] = (255 << 24) | (v << 16) | (v << 8) | v;
+
+                accBuffer[y * w + x] = acc;
+                int absAcc = Math.Abs(acc);
+                if (absAcc > localMax) localMax = absAcc;
             }
-        }
+
+            lock (lockObj)
+            {
+                if (localMax > maxAbs) maxAbs = localMax;
+            }
+        });
+
+        float scale = 255.0f / maxAbs;
+        Parallel.For(0, src.Length, i =>
+        {
+            int v = (int)(Math.Abs(accBuffer[i]) * scale);
+            v = Math.Clamp(v, 0, 255);
+            dst[i] = (255 << 24) | (v << 16) | (v << 8) | v;
+        });
 
         Array.Copy(dst, src, src.Length);
     }
