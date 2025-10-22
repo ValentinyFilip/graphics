@@ -33,55 +33,10 @@ public class Cv02Images(int width, int height) : IExerciseInterface
 
         Parallel.For(0, data.Length, i =>
         {
-            int argb = data[i];
-            int r = (argb >> 16) & 0xFF;
-            int g = (argb >> 8) & 0xFF;
-            int b = argb & 0xFF;
-
-            // RGB to HSL
-            float rf = r / 255.0f;
-            float gf = g / 255.0f;
-            float bf = b / 255.0f;
-
-            float max = Math.Max(rf, Math.Max(gf, bf));
-            float min = Math.Min(rf, Math.Min(gf, bf));
-            float delta = max - min;
-
-            float h = 0, s = 0, l = (max + min) / 2.0f;
-
-            if (delta != 0)
-            {
-                s = l < 0.5f ? delta / (max + min) : delta / (2.0f - max - min);
-
-                if (max == rf)
-                    h = ((gf - bf) / delta + (gf < bf ? 6 : 0)) / 6.0f;
-                else if (max == gf)
-                    h = ((bf - rf) / delta + 2) / 6.0f;
-                else
-                    h = ((rf - gf) / delta + 4) / 6.0f;
-            }
-
-            // Apply saturation ratio
-            s = Math.Clamp(s * ratio, 0.0f, 1.0f);
-
-            // HSL to RGB
-            int newR, newG, newB;
-            if (s == 0)
-            {
-                // Achromatic (gray)
-                newR = newG = newB = (int)(l * 255);
-            }
-            else
-            {
-                float v2 = l < 0.5f ? l * (1 + s) : (l + s) - (l * s);
-                float v1 = 2 * l - v2;
-
-                newR = (int)(255 * HueToRgb(v1, v2, h + (1.0f / 3.0f)));
-                newG = (int)(255 * HueToRgb(v1, v2, h));
-                newB = (int)(255 * HueToRgb(v1, v2, h - (1.0f / 3.0f)));
-            }
-
-            data[i] = (255 << 24) | (newR << 16) | (newG << 8) | newB;
+            HslColor hsl = new(data[i]);
+            double newS = Math.Clamp(hsl.S * ratio, 0.0, 1.0);
+            HslColor adjusted = new(hsl.H, newS, hsl.L, hsl.A);
+            data[i] = HslToArgb(adjusted);
         });
     }
 
@@ -91,65 +46,45 @@ public class Cv02Images(int width, int height) : IExerciseInterface
 
         Parallel.For(0, data.Length, i =>
         {
-            int argb = data[i];
-            int r = (argb >> 16) & 0xFF;
-            int g = (argb >> 8) & 0xFF;
-            int b = argb & 0xFF;
-
-            // RGB to HSL
-            float rf = r / 255.0f;
-            float gf = g / 255.0f;
-            float bf = b / 255.0f;
-
-            float max = Math.Max(rf, Math.Max(gf, bf));
-            float min = Math.Min(rf, Math.Min(gf, bf));
-            float delta = max - min;
-
-            float h = 0, s = 0, l = (max + min) / 2.0f;
-
-            if (delta != 0)
-            {
-                s = l < 0.5f ? delta / (max + min) : delta / (2.0f - max - min);
-
-                if (max == rf)
-                    h = ((gf - bf) / delta + (gf < bf ? 6 : 0)) / 6.0f;
-                else if (max == gf)
-                    h = ((bf - rf) / delta + 2) / 6.0f;
-                else
-                    h = ((rf - gf) / delta + 4) / 6.0f;
-            }
-
-            // Apply hue shift and wrap around 0-1
-            h = (h + shift / 360.0f) % 1.0f;
-            if (h < 0) h += 1.0f;
-
-            // HSL to RGB
-            int newR, newG, newB;
-            if (s == 0)
-            {
-                newR = newG = newB = (int)(l * 255);
-            }
-            else
-            {
-                float v2 = l < 0.5f ? l * (1 + s) : (l + s) - (l * s);
-                float v1 = 2 * l - v2;
-
-                newR = (int)(255 * HueToRgb(v1, v2, h + (1.0f / 3.0f)));
-                newG = (int)(255 * HueToRgb(v1, v2, h));
-                newB = (int)(255 * HueToRgb(v1, v2, h - (1.0f / 3.0f)));
-            }
-
-            data[i] = (255 << 24) | (newR << 16) | (newG << 8) | newB;
+            HslColor hsl = new(data[i]);
+            double newH = (hsl.H + shift) % 360.0;
+            if (newH < 0) newH += 360.0;
+            HslColor adjusted = new(newH, hsl.S, hsl.L, hsl.A);
+            data[i] = HslToArgb(adjusted);
         });
     }
 
-    private static float HueToRgb(float v1, float v2, float vH)
+    private static int HslToArgb(HslColor hsl)
+    {
+        int r, g, b;
+
+        if (hsl.S == 0)
+        {
+            // Achromatic (gray)
+            r = g = b = (int)(hsl.L * 255);
+        }
+        else
+        {
+            double v2 = hsl.L < 0.5 ? hsl.L * (1 + hsl.S) : (hsl.L + hsl.S) - (hsl.L * hsl.S);
+            double v1 = 2 * hsl.L - v2;
+            double h = hsl.H / 360.0;
+
+            r = (int)(255 * HueToRgb(v1, v2, h + (1.0 / 3.0)));
+            g = (int)(255 * HueToRgb(v1, v2, h));
+            b = (int)(255 * HueToRgb(v1, v2, h - (1.0 / 3.0)));
+        }
+
+        int a = (int)(hsl.A * 255);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static double HueToRgb(double v1, double v2, double vH)
     {
         if (vH < 0) vH += 1;
         if (vH > 1) vH -= 1;
         if ((6 * vH) < 1) return v1 + (v2 - v1) * 6 * vH;
         if ((2 * vH) < 1) return v2;
-        if ((3 * vH) < 2) return v1 + (v2 - v1) * ((2.0f / 3.0f) - vH) * 6;
+        if ((3 * vH) < 2) return v1 + (v2 - v1) * ((2.0 / 3.0) - vH) * 6;
         return v1;
     }
 }
