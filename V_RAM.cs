@@ -31,6 +31,7 @@ public class VRam(int width = 255, int height = 255)
         (byte r, byte g, byte b) = HslToRgb(hsl);
         _rawData[y * Width + x] = ((byte)(hsl.A * 255) << 24) | (r << 16) | (g << 8) | b;
     }
+
     private static (byte r, byte g, byte b) HslToRgb(HslColor hsl)
     {
         byte r, g, b;
@@ -83,10 +84,10 @@ public class VRam(int width = 255, int height = 255)
         int pixelIndex = 0;
         foreach (int argb in _rawData)
         {
-            pixels[pixelIndex++] = (byte)argb;           // Blue
-            pixels[pixelIndex++] = (byte)(argb >> 8);    // Green
-            pixels[pixelIndex++] = (byte)(argb >> 16);   // Red
-            pixels[pixelIndex++] = (byte)(argb >> 24);   // Alpha
+            pixels[pixelIndex++] = (byte)argb; // Blue
+            pixels[pixelIndex++] = (byte)(argb >> 8); // Green
+            pixels[pixelIndex++] = (byte)(argb >> 16); // Red
+            pixels[pixelIndex++] = (byte)(argb >> 24); // Alpha
         }
 
         bmp.WritePixels(new System.Windows.Int32Rect(0, 0, Width, Height), pixels, Width * 4, 0);
@@ -126,5 +127,16 @@ public class VRam(int width = 255, int height = 255)
         }
 
         Array.Copy(source._rawData, _rawData, _rawData.Length);
+    }
+
+    public VRam Clone()
+    {
+        // Create new VRam with same dimensions
+        VRam cloned = new VRam(Width, Height);
+
+        // Copy all pixel data
+        Array.Copy(_rawData, cloned._rawData, _rawData.Length);
+
+        return cloned;
     }
 }

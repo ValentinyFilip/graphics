@@ -17,6 +17,10 @@
                 <MenuItem Header="Adjust Hue" Click="Hue_Click"/>
                 <MenuItem Header="Blur 3x3" Click="BoxBlur_Click" />
                 <MenuItem Header="Edge detect" Click="EdgeDetect_Click" />
+                <MenuItem Header="Gaussian Blur 3x3" Click="GaussianBlurSmall_Click"/>
+                <MenuItem Header="Smoothing filter with threshold" Click="GaussianSmoothingWithThreshold_Click"/>
+                <MenuItem Header="Gaussian Blur 5x5" Click="GaussianBlurBig_Click"/>
+                <MenuItem Header="Remove red eyes" Click="RemoveRedEyes_Click"/>
                 <Separator/>
                 <MenuItem Header="Revert to Original" Click="Revert_Click"/>
             </MenuItem>

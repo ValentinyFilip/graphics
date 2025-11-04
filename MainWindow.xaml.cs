@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using RasterGraphics.Common;
 using RasterGraphics.Exercises;
+using RasterGraphics.Tasks;
 
 namespace RasterGraphics;
 
@@ -24,9 +25,9 @@ public partial class MainWindow
 
     private void LoadImage_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog {
-            Filter = "Image files|*.png;*.bmp;*.jpg;*.jpeg;*.webp",
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Image files|*.png;*.bmp;*.jpg;*.jpeg;*.webp", InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
         };
 
         if (dlg.ShowDialog() == true)
@@ -167,5 +168,102 @@ public partial class MainWindow
         stopwatch.Stop();
         Console.WriteLine($"EdgeDetection took {stopwatch.ElapsedMilliseconds} ms");
         ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void GaussianBlurSmall_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        var boxBlur = Kernel.GaussianBlur3x3;
+        Cv03Convolution.Convolution(_vram, in boxBlur);
+        stopwatch.Stop();
+        Console.WriteLine($"GaussianBlur 3x3 took {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void GaussianBlurBig_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        var boxBlur = Kernel.GaussianBlur5x5;
+        Cv03Convolution.Convolution(_vram, in boxBlur);
+        stopwatch.Stop();
+        Console.WriteLine($"GaussianBlur 5x5 took {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void RemoveRedEyes_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        RemoveRedEyeEffectTask.RemoveRedEyes(_vram);
+        stopwatch.Stop();
+        Console.WriteLine($"RemoveRedEyes took {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private async void GaussianSmoothingWithThreshold_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Save original image
+        int[] originalData = new int[_vram._rawData.Length];
+        Array.Copy(_vram._rawData, originalData, originalData.Length);
+
+        var boxBlur = Kernel.GaussianBlur3x3;
+        int[] thresholds = { 5, 10, 20, 30, 50 };
+
+        foreach (int T in thresholds)
+        {
+            // Restore original
+            Array.Copy(originalData, _vram._rawData, originalData.Length);
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            SmoothingFilterTask.ConvolutionWithThreshold(_vram, in boxBlur, T);
+
+            stopwatch.Stop();
+            Console.WriteLine($"Smoothing with threshold T={T} took {stopwatch.ElapsedMilliseconds} ms");
+
+            // Update display
+            ImagePanel.SetImage(_vram.GetBitmap());
+
+            // Wait 1 second so you can see the result
+            await Task.Delay(1000);
+        }
+
+        // Restore original at the end
+        Array.Copy(originalData, _vram._rawData, originalData.Length);
+        ImagePanel.SetImage(_vram.GetBitmap());
+
+        MessageBox.Show("Smoothing complete! Tested thresholds: 5, 10, 20, 30, 50",
+            "Complete", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }
