@@ -232,38 +232,20 @@ public partial class MainWindow
             return;
         }
 
-        // Save original image
         int[] originalData = new int[_vram._rawData.Length];
         Array.Copy(_vram._rawData, originalData, originalData.Length);
 
-        var boxBlur = Kernel.GaussianBlur3x3;
-        int[] thresholds = { 5, 10, 20, 30, 50 };
-
-        foreach (int T in thresholds)
-        {
-            // Restore original
-            Array.Copy(originalData, _vram._rawData, originalData.Length);
-
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
-            SmoothingFilterTask.ConvolutionWithThreshold(_vram, in boxBlur, T);
-
-            stopwatch.Stop();
-            Console.WriteLine($"Smoothing with threshold T={T} took {stopwatch.ElapsedMilliseconds} ms");
-
-            // Update display
-            ImagePanel.SetImage(_vram.GetBitmap());
-
-            // Wait 1 second so you can see the result
-            await Task.Delay(1000);
-        }
-
-        // Restore original at the end
+        var boxBlur = Kernel.GaussianBlur5x5;
         Array.Copy(originalData, _vram._rawData, originalData.Length);
-        ImagePanel.SetImage(_vram.GetBitmap());
 
-        MessageBox.Show("Smoothing complete! Tested thresholds: 5, 10, 20, 30, 50",
-            "Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        SmoothingFilterTask.ConvolutionWithThreshold(_vram, in boxBlur, 50);
+
+        stopwatch.Stop();
+        Console.WriteLine($"Smoothing with threshold T=50 took {stopwatch.ElapsedMilliseconds} ms");
+
+        ImagePanel.SetImage(_vram.GetBitmap());
     }
 }

@@ -22,13 +22,13 @@ public class RemoveRedEyeEffectTask(int width, int height) : IExerciseInterface
             int argb = data[i];
 
             // Step 1: RGB → HSL conversion
-            RgbColor rgb = new RgbColor(argb);
+            RgbColor rgb = new(argb);
             HslColor hsl = rgb.ToHsl();
 
             // Step 2: Context-free red-eye detection (based only on THIS pixel)
             // Red-eye criteria:
             // - Hue in red range (0-40° or 330-360°)
-            // - Saturation above threshold (vivid color, not grayish)
+            // - Saturation above a threshold (vivid color, not grayish)
             // - Red channel dominant in RGB
             // - Minimum red brightness
             bool isRedEye = (hsl.H >= 0 && hsl.H <= 40 || hsl.H >= 330) &&
@@ -39,22 +39,29 @@ public class RemoveRedEyeEffectTask(int width, int height) : IExerciseInterface
 
             if (isRedEye)
             {
-                // Step 3: Hue shift transformation
+                // Step 3: ADAPTIVE Hue shift transformation
+                // Calculate an adaptation factor based on original color intensity
+                // More saturated and brighter red → darker blue (lower hue)
+                // Less saturated or darker red → lighter blue/cyan (higher hue)
+                double adaptationFactor = Math.Clamp(hsl.S * hsl.L * 0.85, 0.0, 1.0);
+
                 // EXPERIMENTS with different target hues:
-                // - 200° (blue-cyan): Natural for blue eyes, complementary to red
-                // - 210° (cyan): Lighter, cooler tone
-                // - 30-60° (amber): For brown eyes
-                // CHOSEN: 200° provides most natural result
-                double newHue = 200;
+                // Base: 200° (blue-cyan) for neutral red
+                // Range: 140° (darker blue) to 220° (lighter cyan)
+                // Adaptation: Brighter/more saturated red → darker blue
+                const double baseHue = 200.0;
+                const double hueRange = 40.0; // Range of variation
+                double newHue = baseHue - adaptationFactor * hueRange;
+                // Result: 200° - (0..1 * 60) = 200° down to 140°
 
-                // Slightly reduce saturation to avoid artificial appearance
-                double newSaturation = hsl.S * 0.85;
+                // Also adapt saturation: brighter red → more saturated blue
+                double newSaturation = Math.Clamp(hsl.S * (0.75 + adaptationFactor * 0.40), 0.2, 0.95);
 
-                // Keep original lightness to preserve brightness gradient
-                double newLightness = hsl.L;
+                // Keep original lightness to preserve the brightness gradient
+                double newLightness = hsl.L * 0.4875;
 
                 // Step 4: HSL → RGB conversion
-                HslColor corrected = new HslColor(newHue, newSaturation, newLightness, hsl.A);
+                HslColor corrected = new(newHue, newSaturation, newLightness, hsl.A);
                 RgbColor correctedRgb = RgbColor.FromHsl(corrected);
 
                 data[i] = correctedRgb.ToArgb();
