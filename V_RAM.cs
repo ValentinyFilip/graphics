@@ -139,4 +139,34 @@ public class VRam(int width = 255, int height = 255)
 
         return cloned;
     }
+
+    public void Fill(uint color)
+    {
+        int argb = (int)color;
+        Array.Fill(_rawData, argb);
+    }
+
+    /// <summary>
+    /// Fill entire VRam buffer with white color.
+    /// </summary>
+    public void FillWhite()
+    {
+        Fill(0xFFFFFFFF);
+    }
+
+    /// <summary>
+    /// Fill entire VRam buffer with black color.
+    /// </summary>
+    public void FillBlack()
+    {
+        Fill(0xFF000000);
+    }
+
+    /// <summary>
+    /// Clear buffer (fill with transparent black).
+    /// </summary>
+    public void Clear()
+    {
+        Array.Clear(_rawData, 0, _rawData.Length);
+    }
 }

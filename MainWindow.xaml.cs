@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using RasterGraphics.Common;
@@ -265,5 +266,221 @@ public partial class MainWindow
 
         MessageBox.Show("Smoothing complete! Tested thresholds: 5, 10, 20, 30, 50",
             "Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void CompressionRle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        // 1) Convert to grayscale
+        byte[] gray = Cv04_Compression.ToGrayscaleBuffer(_vram);
+        int originalBytes = gray.Length; // 1 byte per pixel
+
+        // 2) Compress with RLE
+        var compressed = Cv04_Compression.CompressRle(gray);
+        int compressedBytes = compressed.Count * 2; // count + value = 2 bytes per run
+
+        // 3) Decompress for verification
+        byte[] decompressed = Cv04_Compression.DecompressRle(compressed, gray.Length);
+
+        // 4) Display decompressed image
+        Cv04_Compression.FromGrayscaleBuffer(_vram, decompressed);
+
+        stopwatch.Stop();
+
+        double ratio = (double)compressedBytes / originalBytes;
+        double savedPercent = (1.0 - ratio) * 100;
+
+        MessageBox.Show(
+            $"RLE Lossless Compression:\n\n" +
+            $"Original size: {originalBytes:N0} bytes\n" +
+            $"Compressed size: {compressedBytes:N0} bytes\n" +
+            $"Compression ratio: {ratio:P1}\n" +
+            $"Space saved: {savedPercent:F1}%\n\n" +
+            $"Time: {stopwatch.ElapsedMilliseconds} ms\n\n" +
+            $"Note: Image is lossless (identical to original)",
+            "Compression Results",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+
+        Console.WriteLine($"RLE Compression: {originalBytes} B → {compressedBytes} B (ratio {ratio:P1}, saved {savedPercent:F1}%)");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void CompressionRleQuantized_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        // 1) Convert to grayscale
+        byte[] gray = Cv04_Compression.ToGrayscaleBuffer(_vram);
+        int originalBytes = gray.Length;
+
+        // 2) Apply lossy quantization (256 levels -> 16 levels)
+        Cv04_Compression.QuantizeGrayscale(gray, 16);
+
+        // 3) Compress with RLE (works much better after quantization!)
+        var compressed = Cv04_Compression.CompressRle(gray);
+        int compressedBytes = compressed.Count * 2;
+
+        // 4) Decompress
+        byte[] decompressed = Cv04_Compression.DecompressRle(compressed, gray.Length);
+
+        // 5) Display result
+        Cv04_Compression.FromGrayscaleBuffer(_vram, decompressed);
+
+        stopwatch.Stop();
+
+        double ratio = (double)compressedBytes / originalBytes;
+        double savedPercent = (1.0 - ratio) * 100;
+
+        MessageBox.Show(
+            $"RLE with Quantization (Lossy):\n\n" +
+            $"Original size: {originalBytes:N0} bytes\n" +
+            $"Compressed size: {compressedBytes:N0} bytes\n" +
+            $"Compression ratio: {ratio:P1}\n" +
+            $"Space saved: {savedPercent:F1}%\n\n" +
+            $"Time: {stopwatch.ElapsedMilliseconds} ms\n\n" +
+            $"Note: Image quality reduced\n" +
+            $"(256 gray levels → 16 gray levels)",
+            "Compression Results",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+
+        Console.WriteLine($"RLE + Quantization: {originalBytes} B → {compressedBytes} B (ratio {ratio:P1}, saved {savedPercent:F1}%)");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void LineNative_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+
+        // Draw star pattern using native WPF rendering
+        var bitmap = Cv05_LineDrawing.DrawStarPatternNative(
+            _vram.Width,
+            _vram.Height,
+            Colors.White);
+
+        stopwatch.Stop();
+
+        Console.WriteLine($"Native (WPF): {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(bitmap);
+    }
+
+    private void LineDDA_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+
+        // Clear screen
+        Array.Clear(_vram._rawData, 0, _vram._rawData.Length);
+
+        // Draw test pattern
+        int w = _vram.Width;
+        int h = _vram.Height;
+        int centerX = w / 2;
+        int centerY = h / 2;
+        int radius = Math.Min(w, h) / 3;
+
+        for (int i = 0; i < 16; i++)
+        {
+            double angle = i * Math.PI * 2 / 16;
+            int x = centerX + (int)(Math.Cos(angle) * radius);
+            int y = centerY + (int)(Math.Sin(angle) * radius);
+
+            Cv05_LineDrawing.DrawLineDDA(_vram, centerX, centerY, x, y, 0xFFFFFFFF);
+        }
+
+        stopwatch.Stop();
+        Console.WriteLine($"DDA: {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void LineBresenham_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vram == null)
+        {
+            MessageBox.Show("Please load an image first.", "No Image",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+
+        Array.Clear(_vram._rawData, 0, _vram._rawData.Length);
+
+        int w = _vram.Width;
+        int h = _vram.Height;
+        int centerX = w / 2;
+        int centerY = h / 2;
+        int radius = Math.Min(w, h) / 3;
+
+        for (int i = 0; i < 16; i++)
+        {
+            double angle = i * Math.PI * 2 / 16;
+            int x = centerX + (int)(Math.Cos(angle) * radius);
+            int y = centerY + (int)(Math.Sin(angle) * radius);
+
+            Cv05_LineDrawing.DrawLineBresenham(_vram, centerX, centerY, x, y, 0xFFFFFFFF);
+        }
+
+        stopwatch.Stop();
+        Console.WriteLine($"Bresenham: {stopwatch.ElapsedMilliseconds} ms");
+        ImagePanel.SetImage(_vram.GetBitmap());
+    }
+
+    private void BezierQuadratic_Click(object sender, RoutedEventArgs e)
+    {
+        var vram = new VRam(800, 600);
+        var exercise = new Cv06_BezierCurves(800, 600);
+        ImagePanel.SetImage(exercise.Execute());
+    }
+
+    private void BezierCubic_Click(object sender, RoutedEventArgs e)
+    {
+        var vram = new VRam(800, 600);
+
+        Point p0 = new(50, 300);
+        Point p1 = new(200, 50);
+        Point p2 = new(600, 50);
+        Point p3 = new(750, 300);
+
+        Cv06_BezierCurves.DrawBezierCubic(vram, p0, p1, p2, p3, 0xFF00FF00, 500);
+
+        ImagePanel.SetImage(vram.GetBitmap());
+    }
+
+    private void BezierSpline_Click(object sender, RoutedEventArgs e)
+    {
+        var task = new BezierSplineTask(800, 600);
+        ImagePanel.SetImage(task.Execute());
     }
 }

@@ -6,23 +6,36 @@
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="File">
-                <MenuItem Header="Load Image" Click="LoadImage_Click"/>
-                <MenuItem Header="Save as PNG" Click="SaveImage_Click"/>
-                <Separator/>
+                <MenuItem Header="Load Image" Click="LoadImage_Click" />
+                <MenuItem Header="Save as PNG" Click="SaveImage_Click" />
+                <Separator />
                 <!-- <MenuItem Header="Exit" Click="Exit_Click"/> -->
             </MenuItem>
             <MenuItem Header="Image">
-                <MenuItem Header="Grayscale" Click="Grayscale_Click"/>
-                <MenuItem Header="Adjust Saturation" Click="Saturation_Click"/>
-                <MenuItem Header="Adjust Hue" Click="Hue_Click"/>
+                <MenuItem Header="Grayscale" Click="Grayscale_Click" />
+                <MenuItem Header="Adjust Saturation" Click="Saturation_Click" />
+                <MenuItem Header="Adjust Hue" Click="Hue_Click" />
                 <MenuItem Header="Blur 3x3" Click="BoxBlur_Click" />
                 <MenuItem Header="Edge detect" Click="EdgeDetect_Click" />
-                <MenuItem Header="Gaussian Blur 3x3" Click="GaussianBlurSmall_Click"/>
-                <MenuItem Header="Smoothing filter with threshold" Click="GaussianSmoothingWithThreshold_Click"/>
-                <MenuItem Header="Gaussian Blur 5x5" Click="GaussianBlurBig_Click"/>
-                <MenuItem Header="Remove red eyes" Click="RemoveRedEyes_Click"/>
-                <Separator/>
-                <MenuItem Header="Revert to Original" Click="Revert_Click"/>
+                <MenuItem Header="Gaussian Blur 3x3" Click="GaussianBlurSmall_Click" />
+                <MenuItem Header="Smoothing filter with threshold" Click="GaussianSmoothingWithThreshold_Click" />
+                <MenuItem Header="Gaussian Blur 5x5" Click="GaussianBlurBig_Click" />
+                <MenuItem Header="Remove red eyes" Click="RemoveRedEyes_Click" />
+                <Separator />
+                <MenuItem Header="Compression (RLE Lossless)" Click="CompressionRle_Click" />
+                <MenuItem Header="Compression (RLE with Quantization)" Click="CompressionRleQuantized_Click" />
+                <Separator />
+                <MenuItem Header="Revert to Original" Click="Revert_Click" />
+            </MenuItem>
+            <MenuItem Header="Drawing">
+                <MenuItem Header="Line - Native (WPF)" Click="LineNative_Click" />
+                <MenuItem Header="Line - DDA" Click="LineDDA_Click" />
+                <MenuItem Header="Line - Bresenham" Click="LineBresenham_Click" />
+                <Separator />
+                <MenuItem Header="Bezier - Quadratic" Click="BezierQuadratic_Click" />
+                <MenuItem Header="Bezier - Cubic" Click="BezierCubic_Click" />
+                <Separator />
+                <MenuItem Header="Bezier Spline" Click="BezierSpline_Click" />
             </MenuItem>
         </Menu>
         <rasterGraphics:ImagePanel x:Name="ImagePanel" Margin="10,10,24,45" />
