@@ -36,6 +36,8 @@
                 <MenuItem Header="Bezier - Cubic" Click="BezierCubic_Click" />
                 <Separator />
                 <MenuItem Header="Bezier Spline" Click="BezierSpline_Click" />
+                <Separator />
+                <MenuItem Header="Clock rotation" Click="AnalogClock_Click" />
             </MenuItem>
         </Menu>
         <rasterGraphics:ImagePanel x:Name="ImagePanel" Margin="10,10,24,45" />

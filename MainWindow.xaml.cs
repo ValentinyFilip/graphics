@@ -465,4 +465,10 @@ public partial class MainWindow
         var task = new BezierSplineTask(800, 600);
         ImagePanel.SetImage(task.Execute());
     }
+
+    private void AnalogClock_Click(object sender, RoutedEventArgs e)
+    {
+        var task = new AnalogClockTask();
+        ImagePanel.SetImage(task.Execute());
+    }
 }
